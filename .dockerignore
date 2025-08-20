@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+README.md
+.dockerignore
+Dockerfile
+.pytest_cache
+.coverage
+.env
+*.log

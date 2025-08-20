@@ -1,0 +1,5 @@
+Django==5.2.5
+djangorestframework==3.15.2
+rembg==2.0.67
+Pillow==10.4.0
+onnxruntime==1.20.1
