@@ -17,3 +17,13 @@ class ImageUploadSerializer(serializers.Serializer):
             )
         
         return value
+
+
+class ProductSearchSerializer(serializers.Serializer):
+    product_name = serializers.CharField(max_length=200)
+    num_images = serializers.IntegerField(min_value=1, max_value=10, default=3)
+    
+    def validate_product_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Product name cannot be empty.")
+        return value.strip()
