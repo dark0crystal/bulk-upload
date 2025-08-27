@@ -4,8 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
-from .serializers import ImageUploadSerializer, ProductSearchSerializer
-from .utils import remove_background, download_and_process_images
+from .serializers import ImageUploadSerializer, ProductSearchSerializer, CartonDuplicationSerializer
+from .utils import remove_background, download_and_process_images, duplicate_items_for_carton
 
 
 class RemoveBackgroundView(APIView):
@@ -121,4 +121,62 @@ class ProductImageSearchView(APIView):
             return Response({
                 'success': False,
                 'error': f'Processing failed: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CartonDuplicationView(APIView):
+    """
+    API endpoint to duplicate a single processed item into a carton arrangement.
+    """
+    
+    def post(self, request):
+        serializer = CartonDuplicationSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Get parameters
+            uploaded_image = serializer.validated_data['image']
+            quantity = serializer.validated_data['quantity']
+            items_per_row = serializer.validated_data.get('items_per_row')
+            
+            # Create carton arrangement directly from uploaded image
+            carton_image = duplicate_items_for_carton(
+                uploaded_image, 
+                quantity, 
+                items_per_row
+            )
+            
+            # Generate unique filename
+            unique_filename = f"carton_{uuid.uuid4().hex}_{quantity}_items.png"
+            
+            # Save carton image to media directory
+            media_path = os.path.join(settings.MEDIA_ROOT, 'processed')
+            os.makedirs(media_path, exist_ok=True)
+            
+            file_path = os.path.join(media_path, unique_filename)
+            
+            with open(file_path, 'wb') as f:
+                f.write(carton_image.read())
+            
+            # Generate download URL
+            download_url = f"{settings.MEDIA_URL}processed/{unique_filename}"
+            
+            return Response({
+                'success': True,
+                'message': f'Carton with {quantity} items created successfully',
+                'carton_image_url': download_url,
+                'filename': unique_filename,
+                'quantity': quantity,
+                'items_per_row': items_per_row or (quantity if quantity <= 4 else 4)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Carton creation failed: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
